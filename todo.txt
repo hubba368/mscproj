@@ -1,0 +1,5 @@
+1) make neat config file
+2) make neat compat "arena" py file
+2.5) make changes to neat Population py file to hook into fireplace
+3) get correct data outputs etc
+4) custom utility stuff (hopefully based upon cards in the deck, hero chosen etc)
