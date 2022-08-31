@@ -22,16 +22,17 @@ class Arena(object):
 
         self.epScore = []
         self.epLen = []
-        #print(fireplace.GetValidMoves(self.fireplace.game))
+        
 
     def SimulateState(self, nets):
         data = []
         
-        numGames = 3
+        numGames = 10
         netNum = 0
+        print(len(nets))
         for genome, net in nets:
             step = 0
-            self.fireplace.InitGame()
+            self.StartNewGame(self.fireplace)
             
             netNum += 1 
             numwin = 0
@@ -39,15 +40,11 @@ class Arena(object):
             numMaxActionDupes = 3
             numCurDupes = 0
 
+            print("\nStarting new game for Net {}.\n".format(netNum))
+
             while step != numGames:              
                 input = self.fireplace.testgame(self.fireplace.game)
-                #actions = self.fireplace.GetValidMoves(self.fireplace.game)
 
-                #print("INPUT=================\n")
-                #print(input)
-                #print("ACTIONS===============\n")
-                #print(actions)
-                print("\n")
                 if input is not None:
                     #for i in input:
                     output = net.activate(input)
@@ -59,42 +56,67 @@ class Arena(object):
                               target (minion (either side), hero, none (e.g. summon minion))
 
                     '''
-                    # TODO add "retries" if it attempts invalid move
-                    # with max num in which case it ends turn
-
                     testd = self.fireplace.PerformAction(output, self.fireplace.game)
                     
-                    if testd == 0:
-                        step +=1
+                    # if attempting move when game is over force end
+                    if testd == 0:                       
+                        res = self.CheckIfGameEnded(self.fireplace, step,
+                        numGames, numloss, numwin, netNum)
+                        if res != -1:
+                            step +=1
+                            numloss += 1 if res == 0 else 0
+                            numwin += 1 if res == 1 else 0
+                    
+                    # force end turn if turn errors
                     if testd == 1:
                         numCurDupes += 1
                     
                     if numCurDupes == numMaxActionDupes:
                         self.fireplace.ForceEndTurn(self.fireplace.game)
                         numCurDupes = 0
-                    
-
+                                   
                 else:
-                    result = self.fireplace.GameEnded()
-                    if result is not None:
-                        if result == 0 or -1:
-                            numloss+=1
-                        elif result == 1:
-                            numwin+= 1
-                        print("testing !!!!!!!!!!")
-                        print("wins: {}".format(numwin))
-                        print("loss: {}".format(numloss))
-                        step +=1
-                        if step == numGames:
-                            result = (netNum, numloss, numwin)
-                            data.append(result) 
-                            break  
+                    # start new
+                    if step != numGames:
+                        res = self.CheckIfGameEnded(self.fireplace, step,
+                        numGames, numloss, numwin, netNum)
+                        if res != -1:
+                            step +=1
+                            numloss += 1 if res == 0 else 0
+                            numwin += 1 if res == 1 else 0
+                            self.StartNewGame(self.fireplace)
 
-        if data is not None:
+            final = []
+            print("Net: {}".format(netNum))
+            print("wins: {}".format(numwin))
+            print("losses: {}".format(numloss))
+            final.append(netNum)
+            final.append(numloss)
+            final.append(numwin)
+            data.append(final)
+            
+        if len(data) > 0:
+            print(len(data))
             return data
                             
+    def CheckIfGameEnded(self, instance, curGameCount, maxGameCount, numloss, numwin, netNum):
+        endCheck = instance.GameEnded()
+        
+        if endCheck is not None:
+            print("End Check: {}".format(endCheck))
+            if endCheck == 0 or -1:
+                print("LOSS")                      
+                return 0                   
+            elif endCheck == 1:
+                print("WIN")            
+                return 1
+        else:
+            print("not done yet")
+            return -1
 
-
+    def StartNewGame(self, fireplace):
+        fireplace.InitGame()
+    
 
     def EvalGenomes(self, genomes, config):
         self.generation = 1
@@ -152,7 +174,7 @@ def run():
     while 1:
         try:
             gen_best = population.run(arena.EvalGenomes, 3)
-
+            print(gen_best)
         except KeyboardInterrupt:
             print("stop")
             break

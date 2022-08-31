@@ -165,7 +165,7 @@ class NeatArena:
         player = 1 if instance.current_player.name == "Player1" else -1
         it = 0
         if instance.ended:
-            print("instance ended prematurely")
+            print("instance ended, starting new if necessary.")
             return None
         try:
             if player == -1:
@@ -174,10 +174,8 @@ class NeatArena:
                     return None
                 else:
                     play_turn(instance)
-                return None
-            else:
-
-               
+                    return None               
+            else:          
                 return self.GetCurrentStateRepresentation(instance)
         except GameOver:
             return None
@@ -218,6 +216,8 @@ class NeatArena:
         state.append(0 if p2.weapon is None else 1)
         state.append(0 if p2.weapon is None else p2.weapon.damage)
         state.append(0 if p2.weapon is None else p2.weapon.durability)
+
+        #state.append(0 if p1.atk is None else p1.atk/20)
 
         state.append(len(p2.hand) / 10)
 
@@ -350,26 +350,43 @@ class NeatArena:
                         actions[i][0] = 1.0
 
             # add targets for each minion to attack
+            # should always attack if can -> enemy hero
             for pos, minion in enumerate(player.field):
                 if minion.can_attack():
-                    for t, c in enumerate(minion.attack_targets):                   
-                        actions[pos+10][t] = 1.0
-                        print("minion pos: {}".format(pos+10))
-                        print("minion targ: {}".format(t))
+                    print(minion)
+                    print("minion pos (on board): {}".format(pos))
+                    actions[pos+10][0] = 1.0                    
+                    for t, c in enumerate(minion.attack_targets):  
+                        # set target masks - cant include own stuff                                                                  
+                        if(c.taunt):
+                            actions[pos+10][t+9] = 1.0  
+                            print("taunt minion (on board): {}".format(t)) 
+                            print(c)
+                        else:
+                            actions[pos+10][t+9] = 1.0
+                            print("minion targs: {}".format(t))
+                            print(c)
 
             # hero power if available
+            # mage only one that can attack self
             if player.hero.power.is_usable():
                 if player.hero.power.requires_target():
                     for t, c in enumerate(player.hero.power.targets):
-                        actions[17][t] = 1.0
+                        actions[17][t+9] = 1.0
                 else:
                     actions[17][0] = 1.0
 
             # hero weapon attack if available
             if player.hero.can_attack():
+                actions[18][0] = 1.0
                 for t, c in enumerate(player.hero.attack_targets):
-                    print(c)
-                    actions[18][t] = 1.0
+                    if(c.taunt):
+                        actions[18][t+9] = 1.0  
+                        print("taunt minion (on board): {}".format(t)) 
+                    else:
+                        actions[18][t+9] = 1.0
+                        print("minion targs: {}".format(t))
+                    
             
             # end turn TODO add concede?
             actions[19][0] = 1.0
@@ -414,24 +431,17 @@ class NeatArena:
                 print("Player Board Empty.")
         
 
-
+            # assemble valid actions through masking
             playables = []
+
+            #cards
             cards = a[0:10]   
-            print("MEGA TEST")
-            print(valids)          
-            # assemble valids
             for i in range(10):
-                #print(cards[i])
                 cards[i] = cards[i] * valids[i][0]
-                #print(cards[i])
-
-
+            #minions
             mins = a[10:17]
             for i in range(7):
                 mins[i] = mins[i] * valids[i+10][0]
-
-            c = cards.index(max(cards))
-            m = mins.index(max(mins))
 
             hp = a[17] * valids[17][0]
             wep = a[18] * valids[18][0]
@@ -446,39 +456,26 @@ class NeatArena:
             action = max(range(len(playables)), key=playables.__getitem__)
 
             # targets
-            targets = []
-            
-            p1 = a[20]
-            p2 = a[21]
-            targ1 = a[22:29]
-            targ2 = a[29:36]
+            targets = []          
+            p1 = a[20]           
+            targ1 = a[21:28]
+            p2 = a[29]
+            targ2 = a[30:37]
             print("P1 Mins: {}".format(targ1))
             print("P2 Mins: {}".format(targ2))
-            #t1 = targ1.index(max(targ1))
-            #t2 = targ2.index(max(targ2))
-
-            #t1 = max(targ1)
-            #t2 = max(targ2)
             
-            none = a[36]
             #chooseOne = a[38:40]
-            #c1 = chooseOne.index(max(chooseOne))
-            targets.append(p1)
-            targets.append(p2)
-            targets.append(none)
-            targets.extend(targ1) # - 2
+            #c1 = chooseOne.index(max(chooseOne)) 
+            targets.append(p1)      
+            targets.extend(targ1) # - 1
+            targets.append(p2) 
             targets.extend(targ2) # - 9  9-15
-
-            #targets.extend(chooseOne)            
-
+      
             
-            target = max(range(len(targets)), key=targets.__getitem__)
-            
-            #temp = max(t1,t2,targets[target])
-
+            target = max(range(len(targets)), key=targets.__getitem__)           
             chosenTarg = target
 
-            print("\nActions")
+            print("\nPlayables")
             print(playables)
             print("\nTargets")
             print(targets)
@@ -489,46 +486,47 @@ class NeatArena:
             print(cards[action])
             print("End Turn value: {}".format(cards[19]))
             print("Chosen Target: {}".format(chosenTarg))
-            print("Target: {}".format(target))
-            
 
-            #if action == 0.0:
-                #print("no viable actions")
-                #return 1
-
-            #if et > 0.5:
-                #player.game.end_turn()
+            # if actions are all 0 (max chosen action is 0),
+            # activate retries
+            if cards[action] == 0.0:
+                return 1
 
             try:
                 # sort targ indices
+                # should be max 8 (per side)
+                # e.g. 7 mins + self,
+                # 7 enemy mins + enemy hero
+                # if taunts - all targs that arent taunt are removed
                 t = int(chosenTarg)
                 
                 if 1 < t <= 8:
-                    t = t-2
+                    t = t-1
                 elif 9 <= t <= 16:
                     t = t-9
-                    if t < 0:
-                        t = 0
+                    
+                if t < 0:
+                    t = 0
+
                 print("Sorted Target: {}".format(t))
 
                 if 0 <= int(action) <= 9:
                     c = int(action)
                     print("card Picked")
-                    try:
-                        print(player.hand[c])                
+                    print(player.hand[c]) 
+                    try:                                     
                         card = player.hand[c]
                     except:
                         print("went to play a card but hand is empty")
                         return 1
 
-
                     if card.requires_target():
                         print(card.targets)
-                        if 0 <= t < len(card.targets):
-                            print("targetting index: {}".format(t))
-                            print("Card target:")
-                            print(card.targets[t])
+                        if 0 <= t < len(card.targets):                           
                             try:
+                                print("targetting index: {}".format(t))
+                                print("Card target:")
+                                print(card.targets[t])
                                 card.play(card.targets[t])
                             except GameOver:
                                 print("most likely killed self")
@@ -553,10 +551,20 @@ class NeatArena:
                         print("tried to add card to played cards, empty hand")
                         return 1
                 elif 10 <= int(action) <= 16:
-                    c = int(action-10)                   
-                    try:
-                        print(player.field[c].attack_targets)
+                    print("Attacking with minion:")
+                    c = int(action-10)      
+                    t = self.GetValidTarget(c+10, valids, 
+                    targets, player.field[c].attack_targets)       
+                    if t == -1:
+                        return 1
+
+                    try:                        
+                        print(player.field[c])
+                        print(player.field[c].attack_targets[t])
                         player.field[c].attack(player.field[c].attack_targets[t])
+                    except IndexError:
+                        print("tried to attack at null index, probs NN output")
+                        return 1
                     except GameOver:
                         print("weird gameover state")
                         return 0
@@ -566,8 +574,14 @@ class NeatArena:
                     else:
                         player.hero.power.use()
                 elif int(action) == 18:
-                    print(player.hero.attack_targets)
-                    try:
+                    print("attacking with Hero: \n")
+                    t = self.GetValidTarget(18, valids, 
+                    targets, player.hero.attack_targets)
+                    if t == -1:
+                        return 1
+
+                    try:                       
+                        print(player.hero.attack_targets)
                         player.hero.attack(player.hero.attack_targets[t])
                     except GameOver:
                         return 0
@@ -586,18 +600,116 @@ class NeatArena:
                 return 1
 
 
+    def GetValidTarget(self, index, valids, targets, entityTargs):
+        c = valids[index]
+
+        for j in range(len(valids)):
+            print(valids[j])
+            if j == index:
+                print("index: {}".format(j))
+                c = valids[j]
+        print("=====")
+        #print(valids[index-1])
+        print(c)
+        #print(valids[index+1])
+        print(entityTargs)
+        min = entityTargs[0]
+        t = targets
+        target = None
+
+        for i in range(len(targets)):
+            t[i] = targets[i] * c[i]
+        print(t)
+        t = targets[8:17]
+        #[i for i in targets if i != 0.0]
+        print(t)
+        try:
+            target = max(range(len(t)), key=t.__getitem__)
+        except ValueError:
+            print("net outputted 0.0 target.")
+            return -1
+        #print(target)
+        if 1 < target <= 8:
+            target = target-1
+        elif 9 <= target <= 16:
+            target = target-9                   
+        
+
+        if min.taunt:
+            target = target-1
+
+        if target < 0:
+            target = 0
+
+        print("Minion/Hero Wep Target: {0}".format(target))
+
+        return target
+
+    def GetValidCardTarget(self, index, valids, targets, entityTargs):
+        c = valids[index]
+
+        for j in range(len(valids)):
+            print(valids[j])
+            if j == index:
+                print("index: {}".format(j))
+                c = valids[j]
+        print("=====")
+        #print(valids[index-1])
+        print(c)
+        #print(valids[index+1])
+        print(entityTargs)
+        min = entityTargs[0]
+        t = targets
+        target = None
+
+        for i in range(1, len(targets)):
+            print("prev: {}".format(i-1))
+            print("current: {}".format(i))
+            t[i] = targets[i] * c[i]
+        print(t)
+        t = [i for i in targets if i != 0.0]
+        print(t)
+        try:
+            target = max(range(len(t)), key=t.__getitem__)
+        except ValueError:
+            print("net outputted 0.0 target.")
+            return -1
+        #print(target)
+        if 1 < target <= 8:
+            target = target-1
+        elif 9 <= target <= 16:
+            target = target-9                   
+        
+
+        if min.taunt:
+            target = target-1
+
+        if target < 0:
+            target = 0
+
+        print("Minion/Hero Wep Target: {0}".format(target))
+
+        return target
+
     def GameEnded(self):
         p1 = self.game.players[0]
         p2 = self.game.players[1]
+        print("player 1: {}".format(p1))
+        print("player 2: {}".format(p2))
 
         if p1.playstate == 4:
+            print("won game")
             return 1
         if p2.playstate == 4:
+            print("enemy won game")
             return -1
         if p1.playstate == 6 and p2.playstate == 6:
+            print("DRAW")
             return 0
         if self.game.turn > 180:
-            self.game.ended = True
+            
+            print("RAN OUT OF TURNS - LOSS")
             return 0
+        
         #return None
 
