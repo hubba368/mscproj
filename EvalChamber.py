@@ -13,17 +13,17 @@ from fireplace.utils import play_turn
 
 from hearthstone.enums import CardClass, CardSet, CardType, State
 
-class NeatArena:
+# same as neatArena just with no evo
 
-    def __init__(self, testGame=True):
+class EvalChamber():
+
+    def __init__(self):
         self.game = None
         self.players = ['', '']
-        self.player1Deck = []
-        self.player2Deck = []
-        self.testGame = testGame
+        self.aggroDeck = []
+        self.midrangeDeck = []
         self.AIBot = None
 
-        self.currentRewardFuncs = None # used per individual (overwritten each time)
         self.currentGameStats = None
         self.currentTurnStats = None
         self.prevSelfHeroDmg = 0
@@ -34,8 +34,8 @@ class NeatArena:
         self.currentTurn = 1
         cards.db.initialize()
         
+        ### Decks
         d1 = []
-
         # class - 15
         # upgrade - 0
         d1.append('EX1_409')
@@ -60,7 +60,6 @@ class NeatArena:
         # tentacles for arms - 5
         d1.append('OG_033')
         d1.append('OG_033')
-
         # neutral - 15
         # southsea deckhand - 1
         d1.append('CS2_146')
@@ -86,60 +85,49 @@ class NeatArena:
         # leeroy jenkins
         d1.append('EX1_116')
 
-        #self.player1Deck = d1
-        deck = []# same as nnet agent
-        deck.append("EX1_534")
-        deck.append("EX1_534")
-        deck.append("CFM_315")
-        deck.append("CFM_315")
-        deck.append("OG_179")
-        deck.append("OG_179")
-        deck.append("OG_061")
-        deck.append("OG_061")
-        deck.append("EX1_162")
-        deck.append("EX1_162")
-        deck.append("FP1_002")
-        deck.append("FP1_002")
-        deck.append("EX1_531")
-        deck.append("EX1_531")
-        deck.append("OG_216")
-        deck.append("OG_216")
-        deck.append("EX1_539")
-        deck.append("EX1_539")
-        deck.append("EX1_538")
-        deck.append("EX1_538")
-        deck.append("EX1_536")
-        deck.append("EX1_536")
-        deck.append("NEW1_031")
-        deck.append("NEW1_031")
-        deck.append("GVG_046")
-        deck.append("GVG_046")
-        deck.append("DS1_183")
-        deck.append("DS1_183")
-        deck.append("DS1_178")
-        deck.append("DS1_178")
-        self.player1Deck = deck
-        
-    def PreInitGameForRewardGen(self):
-        self.players[0] = Player("NEATBot", self.player1Deck, CardClass(3).default_hero)
-        self.players[1] = Player("RogueBot", self.player1Deck, CardClass(7).default_hero)
-        game = Game(players=self.players)
-        game.start()
-        self.game = game
-        self.player1Deck = self.players[0].deck
+        self.aggroDeck = d1
 
-    def InitGame(self, bot=None, player1=None):
+        deck = []# midrange
+        deck.append("EX1_534")
+        deck.append("EX1_534")
+        deck.append("CFM_315")
+        deck.append("CFM_315")
+        deck.append("OG_179")
+        deck.append("OG_179")
+        deck.append("OG_061")
+        deck.append("OG_061")
+        deck.append("EX1_162")
+        deck.append("EX1_162")
+        deck.append("FP1_002")
+        deck.append("FP1_002")
+        deck.append("EX1_531")
+        deck.append("EX1_531")
+        deck.append("OG_216")
+        deck.append("OG_216")
+        deck.append("EX1_539")
+        deck.append("EX1_539")
+        deck.append("EX1_538")
+        deck.append("EX1_538")
+        deck.append("EX1_536")
+        deck.append("EX1_536")
+        deck.append("NEW1_031")
+        deck.append("NEW1_031")
+        deck.append("GVG_046")
+        deck.append("GVG_046")
+        deck.append("DS1_183")
+        deck.append("DS1_183")
+        deck.append("DS1_178")
+        deck.append("DS1_178")
+
+        self.midrangeDeck = deck
+
+    def InitGame(self, player1=None, player2=None):
+
         if self.game is not None and self.game.ended is not State.COMPLETE:
             self.game.state = State.COMPLETE
             self.game.check_for_end_game()
 
-        if self.testGame:
-            extra_set = cards.filter(
-                card_set = [CardSet.EXPERT1, CardSet.HOF, CardSet.NAXX, CardSet.GVG, CardSet.BRM, CardSet.TGT, CardSet.LOE, CardSet.OG, CardSet.KARA, CardSet.GANGS,
-                            CardSet.UNGORO, CardSet.ICECROWN, CardSet.LOOTAPALOOZA, CardSet.GILNEAS, CardSet.BOOMSDAY, CardSet.TROLL]
-            )
-
-            self.currentTurnStats = {'PLAYMINIONCARD': 0,
+        self.currentTurnStats = {'PLAYMINIONCARD': 0,
                                      'PLAYSPELLCARD': 0,
                                      'PLAYWEAPONCARD':0,
                                      'ATKMINTOMIN':0,
@@ -155,94 +143,94 @@ class NeatArena:
                                      'MANASPENTPERGAME':0,
                                      'MANAREMAININGPERTURN':0}
 
-            self.currentGameStats = {}
-            self.prevSelfHeroDmg = 30
-            self.prevEnemyHeroDmg = 30
-            self.currentTurn = 1
+        self.currentGameStats = {}
+        self.prevSelfHeroDmg = 30
+        self.prevEnemyHeroDmg = 30
+        self.currentTurn = 1
+        print(player1)
+        print(player2)
+        p1 = player1
+        p2 = Utils.GetOpponent(player2)         
 
-            p1 = 3
-            # hunter is 3 rogue is 7
-            self.AIBot = Utils.GetOpponent(bot)
-            # todo make decks in sep func or pull from file
-            
-            random.shuffle(self.player1Deck)
-
-            deck = []
+        deck = []
             # Assassinate - 4
-            deck.append('CS2_076')
-            deck.append('CS2_076')
+        deck.append('CS2_076')
+        deck.append('CS2_076')
             # Backstab - 0 
-            deck.append('CS2_072')
-            deck.append('CS2_072')
+        deck.append('CS2_072')
+        deck.append('CS2_072')
             # Bloodfen Raptor - 2
-            deck.append('CS2_172')
-            deck.append('CS2_172')
+        deck.append('CS2_172')
+        deck.append('CS2_172')
             # Deadly Poison - 1
-            deck.append('CS2_074')
-            deck.append('CS2_074')
+        deck.append('CS2_074')
+        deck.append('CS2_074')
             # Dragonling Mechanic - 4
-            deck.append('EX1_025')
-            deck.append('EX1_025')
+        deck.append('EX1_025')
+        deck.append('EX1_025')
             # Elven Archer - 1
-            deck.append('CS2_189')
-            deck.append('CS2_189')
+        deck.append('CS2_189')
+        deck.append('CS2_189')
             # Gnomish Inventor - 4
-            deck.append('CS2_147')
-            deck.append('CS2_147')
+        deck.append('CS2_147')
+        deck.append('CS2_147')
             # Goldshire Footman - 1
-            deck.append('CS1_042')
-            deck.append('CS1_042')
+        deck.append('CS1_042')
+        deck.append('CS1_042')
             # Ironforge Rifleman - 3	
-            deck.append('CS2_141')
-            deck.append('CS2_141')
+        deck.append('CS2_141')
+        deck.append('CS2_141')
             # Nightblade - 5
-            deck.append('EX1_593')
-            deck.append('EX1_593')
+        deck.append('EX1_593')
+        deck.append('EX1_593')
             # Novice Engineer - 2
-            deck.append('EX1_015')
-            deck.append('EX1_015')
+        deck.append('EX1_015')
+        deck.append('EX1_015')
             # Sap - 2
-            deck.append('EX1_581')
-            deck.append('EX1_581')
+        deck.append('EX1_581')
+        deck.append('EX1_581')
             # Sinister Strike - 1
-            deck.append('CS2_075')
-            deck.append('CS2_075')
+        deck.append('CS2_075')
+        deck.append('CS2_075')
             # Stormpike Commando - 5
-            deck.append('CS2_150')
-            deck.append('CS2_150')
+        deck.append('CS2_150')
+        deck.append('CS2_150')
             # Stormwind Knight - 7
-            deck.append('CS2_131')
-            deck.append('CS2_131')
+        deck.append('CS2_131')
+        deck.append('CS2_131')
 
-            #self.player2Deck = deck
+        if player1 == 10:
+            random.shuffle(self.aggroDeck)
+            self.players[0] = Player("NEATBot", self.aggroDeck, CardClass(p1).default_hero)
+        elif player1 == 3:
+            random.shuffle(self.midrangeDeck)
+            self.players[0] = Player("NEATBot", self.midrangeDeck, CardClass(p1).default_hero)
+
+        if p2 == None:
             random.shuffle(deck)
+            self.players[1] = Player("RogueBot", deck, CardClass(7).default_hero)
+        else:
+            self.players[1] = p2
 
-            self.players[0] = Player("NEATBot", self.player1Deck, CardClass(p1).default_hero)
+        game = Game(players=self.players)
+        game.start()
 
-            if self.AIBot == None:
-                self.players[1] = Player("RogueBot", deck, CardClass(7).default_hero)
-            else:
-                self.players[1] = self.AIBot
+        # todo NN mulligan?
+        #for p in game.players:
+        mull = random.sample(game.players[0].choice.cards, 0)
+        game.players[0].choice.choose(*mull) # *arg means recives tuple of "any" length (default empty)
 
-            game = Game(players=self.players)
-            game.start()
+        if self.AIBot is not None:
+            mull = self.AIBot.GetMulligan(game.players[1].choice.cards)
+            game.players[1].choice.choose(*mull)
+        else:
+            mull = random.sample(game.players[1].choice.cards, 0)
+            game.players[1].choice.choose(*mull)
 
-            # todo NN mulligan?
-            #for p in game.players:
-            mull = random.sample(game.players[0].choice.cards, 0)
-            game.players[0].choice.choose(*mull) # *arg means recives tuple of "any" length (default empty)
+        self.players[0].playedcards = []
+        self.players[1].playedcards = []
 
-            if self.AIBot is not None:
-                mull = self.AIBot.GetMulligan(game.players[1].choice.cards)
-                game.players[1].choice.choose(*mull)
-            else:
-                mull = random.sample(game.players[1].choice.cards, 0)
-                game.players[1].choice.choose(*mull)
-
-            self.players[0].playedcards = []
-            self.players[1].playedcards = []
-
-            self.game = game
+        self.game = game
 
 
     # returns None to denote whether a game is over
@@ -310,7 +298,6 @@ class NeatArena:
         print(rewardType)
          
     def FinaliseStatsEndOfTurn(self):
-
         currentTurn = self.currentTurn
         print("current Turn: {}".format(currentTurn))
         self.currentTurnStats['ENEMYMINDEATHS'] = self.game.players[0].minions_killed_this_turn
@@ -351,7 +338,6 @@ class NeatArena:
                                      'MANASPENTPERGAME':0,
                                      'MANAREMAININGPERTURN':0}
             
-
     def GetCurrentStateRepresentation(self, instance):
         # should return a feature representation e.g. array of extracted game features
 
@@ -497,7 +483,6 @@ class NeatArena:
         # first bit == whether the action is valid
 
         rows, cols = (21,2)
-
         actions = [[0.0 for i in range(cols)] for j in range(rows)]
         player = instance.current_player
 
@@ -521,14 +506,14 @@ class NeatArena:
                         actions[i][0] = 1.0
 
             # add targets for each minion to attack
-            # should always have atleast one target (hero)
+            # should always have atleast one target (hero or taunt minion)
             for pos, minion in enumerate(player.field):
                 if minion.can_attack():
                     print(minion)
                     print("minion pos (on board): {}".format(pos))
                     actions[pos+10][0] = 1.0                    
                     for t, c in enumerate(minion.attack_targets):  
-                        # set target masks - cant include own stuff                                                                  
+                        # set target masks                                                                
                         if(c.taunt):
                             actions[pos+10][1] += 1.0  
                             print("taunt minion (on board): {}".format(t)) 
@@ -582,26 +567,6 @@ class NeatArena:
             valids = self.GetValidMoves(instance, a) 
             # split output into "playables" and "targets"
             # playables
-
-            '''print("Player Current Hand (L to R):")
-            for i in range(len(player.hand)):
-                print(player.hand[i])
-
-            print("\n player boards:")
-            for i in range(len(instance.players)):
-                cur = instance.players[i]
-                print(cur)
-                if len(cur.field) > 0:
-                    for i in range(len(cur.field)):
-                        print(cur.field[i])
-            print("\nPlayer Current Board (L to R):")
-            if len(player.field) > 0:
-                for i in range(len(player.field)):
-                    print(player.field[i])
-            else:
-                print("Player Board Empty.")'''
-        
-
             # assemble valid actions through masking
             playables = []
 
@@ -617,7 +582,7 @@ class NeatArena:
             hp = a[17] * valids[17][0]
             wep = a[18] * valids[18][0]
             endTurn = a[19] * valids[19][0]
-            #print("End turn VAL: {}".format(valids[19][0]))
+            print("End turn VAL: {}".format(valids[19][0]))
             cards.extend(mins)
             cards.append(hp)
             cards.append(wep)
@@ -731,8 +696,6 @@ class NeatArena:
                             print("\n")
                             return 1
                             #player.game.end_turn()
-                        except GameOver:
-                            return 0
                     try:
                         player.playedcards.append(card.id)
                     except InvalidAction:
@@ -770,12 +733,10 @@ class NeatArena:
                         elif player.hero.power.play_targets[t].type == CardType.MINION:
                             self.AddStats(rewardFuncs, 'ATKHEROTOMIN')'''
                         player.hero.power.use(player.hero.power.play_targets[t])
-                    else:                                        
-                        try:
-                            self.AddStats('HEROPWR')
-                            player.hero.power.use()
-                        except GameOver:
-                            return 0
+                    else:
+                        
+                        self.AddStats('HEROPWR')
+                        player.hero.power.use()
                 elif int(action) == 18:
                     print("attacking with Hero: \n")
                     t = self.GetValidTarget(18, valids, 
@@ -915,4 +876,3 @@ class NeatArena:
             return -1
         
         return None
-

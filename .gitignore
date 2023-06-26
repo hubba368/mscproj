@@ -1,0 +1,9 @@
+READ FIRST.txt
+Testing/
+Training/
+UNKNOWN.egg-info/
+__pycache__/
+dist/
+env/
+results/
+.vscode/
